@@ -1,30 +1,19 @@
 import { google } from 'googleapis';
-import * as fs from 'fs';
-import * as path from 'path';
 
-// Initialize the Google Sheets API with service account
+// Initialize the Google Sheets API with API key
 export async function initializeGoogleSheetsClient() {
   try {
-    // Read credentials file
-    const credentialsPath = path.join(process.cwd(), 'credentials.json');
+    // Get API key from environment variable
+    const apiKey = process.env.GOOGLE_API_KEY;
     
-    if (!fs.existsSync(credentialsPath)) {
-      throw new Error('Service account credentials file not found');
+    if (!apiKey) {
+      throw new Error('GOOGLE_API_KEY environment variable is not set');
     }
     
-    // Create a new JWT client using the service account for auth
-    const auth = new google.auth.GoogleAuth({
-      keyFile: credentialsPath,
-      scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
-    });
-    
-    // Get client
-    const authClient = await auth.getClient();
-    
-    // Create Google Sheets API client
+    // Create Google Sheets API client with API key
     const sheets = google.sheets({ 
       version: 'v4', 
-      auth: authClient 
+      auth: apiKey
     });
     
     return {
