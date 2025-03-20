@@ -85,6 +85,78 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Registration endpoint - Submit form data to Google Sheets
+  app.post(`${apiPrefix}/sheets/register`, async (req, res) => {
+    try {
+      const { teamName, projectName, projectDescription, studentId1, studentId2, studentId3 } = req.body;
+      
+      // Validate required fields
+      if (!teamName) {
+        return res.status(400).json({ error: "Team name is required" });
+      }
+      
+      if (!projectName) {
+        return res.status(400).json({ error: "Project name is required" });
+      }
+      
+      if (!studentId1) {
+        return res.status(400).json({ error: "At least one student ID is required" });
+      }
+      
+      // Validate student ID format (13 digits)
+      const validateStudentId = (id: string | undefined) => {
+        if (id && !/^\d{13}$/.test(id)) {
+          return false;
+        }
+        return true;
+      };
+      
+      if (!validateStudentId(studentId1)) {
+        return res.status(400).json({ error: "Student ID 1 must be a 13-digit number" });
+      }
+      
+      if (studentId2 && !validateStudentId(studentId2)) {
+        return res.status(400).json({ error: "Student ID 2 must be a 13-digit number" });
+      }
+      
+      if (studentId3 && !validateStudentId(studentId3)) {
+        return res.status(400).json({ error: "Student ID 3 must be a 13-digit number" });
+      }
+      
+      // Get spreadsheet ID and range
+      const spreadsheetId = process.env.DEFAULT_SPREADSHEET_ID || DEFAULT_SPREADSHEET_ID;
+      // We'll append to the sheet with a specific range
+      const range = "Sheet1!A:F"; // Adjust the range to match your sheet's structure
+      
+      // Format data for Google Sheets
+      // Each row is an array of values
+      const values = [
+        [
+          teamName,
+          projectName,
+          projectDescription || "",
+          studentId1,
+          studentId2 || "",
+          studentId3 || ""
+        ]
+      ];
+      
+      // Append data to the sheet
+      const result = await appendDataToSheet(spreadsheetId, range, values);
+      
+      res.json({
+        success: true,
+        updatedRange: result.updates?.updatedRange,
+        updatedRows: result.updates?.updatedRows,
+      });
+    } catch (error) {
+      console.error("Error registering project:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Error registering project" 
+      });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
