@@ -62,18 +62,33 @@ export default function Register() {
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
-      await apiRequest("POST", "/api/sheets/register", values);
+      // Since we're using API key authentication which doesn't allow writes,
+      // let's create a copy-pastable format for the user to manually add to their spreadsheet
+      const rowData = [
+        values.teamName,
+        values.projectName,
+        values.projectDescription || "",
+        values.studentId1,
+        values.studentId2 || "",
+        values.studentId3 || ""
+      ];
       
       // Reset form
       form.reset();
       
+      // Show success message with data
       toast({
-        title: "Registration successful",
-        description: "Your project information has been saved to Google Sheets.",
+        title: "Registration data prepared",
+        description: "Copy this data to add to your spreadsheet: " + rowData.join(", "),
+        duration: 10000, // Show for 10 seconds
       });
+      
+      // Also show an alert with the data for easier copying
+      alert("Registration successful! Please copy this data to add to your Google Sheet:\n\n" + rowData.join("\t"));
+      
     } catch (error) {
       toast({
-        title: "Registration failed",
+        title: "Form processing failed",
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
@@ -93,6 +108,11 @@ export default function Register() {
               <CardDescription className="mt-1 text-sm text-gray-500">
                 Register your team and project information
               </CardDescription>
+              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <p className="text-sm text-yellow-700">
+                  <strong>Note:</strong> This form will validate your data and provide you with formatted information that you can manually copy into your Google Sheet. Direct writing to the spreadsheet requires OAuth 2.0 authentication which is beyond the scope of this demo.
+                </p>
+              </div>
             </CardHeader>
             <CardContent className="px-4 py-5 sm:px-6">
               <Form {...form}>
