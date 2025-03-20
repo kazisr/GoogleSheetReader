@@ -1,6 +1,8 @@
 import { google } from 'googleapis';
+import * as fs from 'fs';
+import * as path from 'path';
 
-// Initialize the Google Sheets API with API key
+// Initialize the Google Sheets API with API key for reading data
 export async function initializeGoogleSheetsClient() {
   try {
     // Get API key from environment variable
@@ -22,6 +24,49 @@ export async function initializeGoogleSheetsClient() {
     };
   } catch (error) {
     console.error('Error initializing Google Sheets client:', error);
+    return {
+      client: null,
+      isAuthenticated: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+// Initialize the Google Sheets API with service account for writing data
+export async function initializeServiceAccountClient() {
+  try {
+    // Load credentials file
+    const credentialsPath = path.join(process.cwd(), 'credentials.json');
+    
+    if (!fs.existsSync(credentialsPath)) {
+      throw new Error('Service account credentials file not found');
+    }
+    
+    const credentials = JSON.parse(fs.readFileSync(credentialsPath, 'utf8'));
+    
+    // Set up service account credentials
+    const client = new google.auth.JWT(
+      credentials.client_email,
+      undefined,
+      credentials.private_key,
+      ['https://www.googleapis.com/auth/spreadsheets']
+    );
+    
+    // Authorize the client
+    await client.authorize();
+    
+    // Create Google Sheets API client with service account
+    const sheets = google.sheets({ 
+      version: 'v4', 
+      auth: client
+    });
+    
+    return {
+      client: sheets,
+      isAuthenticated: true,
+    };
+  } catch (error) {
+    console.error('Error initializing service account client:', error);
     return {
       client: null,
       isAuthenticated: false,
@@ -66,7 +111,8 @@ export async function appendDataToSheet(
   values: string[][]
 ) {
   try {
-    const { client, isAuthenticated } = await initializeGoogleSheetsClient();
+    // Use service account client for write operations
+    const { client, isAuthenticated } = await initializeServiceAccountClient();
     
     if (!client || !isAuthenticated) {
       throw new Error('Not authenticated with Google Sheets API');

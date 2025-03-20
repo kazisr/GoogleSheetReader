@@ -62,33 +62,20 @@ export default function Register() {
   const onSubmit = async (values: FormValues) => {
     setIsSubmitting(true);
     try {
-      // Since we're using API key authentication which doesn't allow writes,
-      // let's create a copy-pastable format for the user to manually add to their spreadsheet
-      const rowData = [
-        values.teamName,
-        values.projectName,
-        values.projectDescription || "",
-        values.studentId1,
-        values.studentId2 || "",
-        values.studentId3 || ""
-      ];
+      // Submit data to the API
+      await apiRequest("POST", "/api/sheets/register", values);
       
       // Reset form
       form.reset();
       
-      // Show success message with data
+      // Show success message
       toast({
-        title: "Registration data prepared",
-        description: "Copy this data to add to your spreadsheet: " + rowData.join(", "),
-        duration: 10000, // Show for 10 seconds
+        title: "Registration successful",
+        description: "Your project information has been saved to Google Sheets.",
       });
-      
-      // Also show an alert with the data for easier copying
-      alert("Registration successful! Please copy this data to add to your Google Sheet:\n\n" + rowData.join("\t"));
-      
     } catch (error) {
       toast({
-        title: "Form processing failed",
+        title: "Registration failed",
         description: error instanceof Error ? error.message : "An unknown error occurred",
         variant: "destructive",
       });
@@ -108,9 +95,9 @@ export default function Register() {
               <CardDescription className="mt-1 text-sm text-gray-500">
                 Register your team and project information
               </CardDescription>
-              <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
-                <p className="text-sm text-yellow-700">
-                  <strong>Note:</strong> This form will validate your data and provide you with formatted information that you can manually copy into your Google Sheet. Direct writing to the spreadsheet requires OAuth 2.0 authentication which is beyond the scope of this demo.
+              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
+                <p className="text-sm text-green-700">
+                  <strong>Note:</strong> The form is now connected to Google Sheets using service account authentication. Your data will be automatically saved to the spreadsheet when you submit this form.
                 </p>
               </div>
             </CardHeader>
