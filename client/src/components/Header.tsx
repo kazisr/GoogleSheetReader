@@ -36,7 +36,7 @@ export default function Header({ onRefresh }: HeaderProps) {
             </Link>
           </div>
           <div className="flex items-center">
-            {onRefresh !== (() => {}) && (
+            {onRefresh.toString() !== (() => {}).toString() && (
               <div className="hidden md:block">
                 <div className="ml-4 flex items-center md:ml-6">
                   <Button
