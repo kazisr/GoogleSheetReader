@@ -338,6 +338,17 @@ export default function Register() {
                   <div className="bg-gray-50 p-4 rounded-md">
                     <h3 className="font-medium text-gray-900 mb-3">Student Information</h3>
                     
+                    {internalDuplicateError && (
+                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-md">
+                        <div className="flex items-center">
+                          <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                          <p className="text-sm text-red-600">
+                            Each student ID must be unique. You cannot use the same ID in multiple fields.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                    
                     <FormField
                       control={form.control}
                       name="studentId1"
@@ -386,13 +397,37 @@ export default function Register() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Student ID 2</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter 13-digit student ID (optional)" {...field} />
-                            </FormControl>
+                            <div className="relative">
+                              <FormControl>
+                                <Input 
+                                  placeholder="Enter 13-digit student ID (optional)" 
+                                  {...field} 
+                                  className={studentIdStatus.studentId2.exists ? "pr-10 border-red-500" : ""}
+                                />
+                              </FormControl>
+                              {studentIdStatus.studentId2.checking && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                </div>
+                              )}
+                              {!studentIdStatus.studentId2.checking && studentIdStatus.studentId2.exists && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <AlertCircle className="h-4 w-4 text-red-500" />
+                                </div>
+                              )}
+                              {!studentIdStatus.studentId2.checking && studentId2 && /^\d{13}$/.test(studentId2) && !studentIdStatus.studentId2.exists && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                </div>
+                              )}
+                            </div>
                             <FormDescription>
                               Optional: Enter a 13-digit student ID
                             </FormDescription>
                             <FormMessage />
+                            {studentIdStatus.studentId2.exists && (
+                              <p className="text-sm text-red-500 mt-1">This student ID is already registered. Each student can only be part of one team.</p>
+                            )}
                           </FormItem>
                         )}
                       />
@@ -405,13 +440,37 @@ export default function Register() {
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Student ID 3</FormLabel>
-                            <FormControl>
-                              <Input placeholder="Enter 13-digit student ID (optional)" {...field} />
-                            </FormControl>
+                            <div className="relative">
+                              <FormControl>
+                                <Input 
+                                  placeholder="Enter 13-digit student ID (optional)" 
+                                  {...field}
+                                  className={studentIdStatus.studentId3.exists ? "pr-10 border-red-500" : ""}
+                                />
+                              </FormControl>
+                              {studentIdStatus.studentId3.checking && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                                </div>
+                              )}
+                              {!studentIdStatus.studentId3.checking && studentIdStatus.studentId3.exists && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <AlertCircle className="h-4 w-4 text-red-500" />
+                                </div>
+                              )}
+                              {!studentIdStatus.studentId3.checking && studentId3 && /^\d{13}$/.test(studentId3) && !studentIdStatus.studentId3.exists && (
+                                <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                  <CheckCircle className="h-4 w-4 text-green-500" />
+                                </div>
+                              )}
+                            </div>
                             <FormDescription>
                               Optional: Enter a 13-digit student ID
                             </FormDescription>
                             <FormMessage />
+                            {studentIdStatus.studentId3.exists && (
+                              <p className="text-sm text-red-500 mt-1">This student ID is already registered. Each student can only be part of one team.</p>
+                            )}
                           </FormItem>
                         )}
                       />
@@ -421,10 +480,21 @@ export default function Register() {
                   <div className="pt-4 flex justify-end">
                     <Button
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={
+                        isSubmitting || 
+                        teamNameExists || 
+                        internalDuplicateError || 
+                        Object.values(studentIdStatus).some(status => status.exists) ||
+                        Object.values(studentIdStatus).some(status => status.checking)
+                      }
                       className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium flex items-center"
                     >
-                      {isSubmitting ? "Submitting..." : "Register Project"}
+                      {isSubmitting ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : "Register Project"}
                     </Button>
                   </div>
                 </form>
