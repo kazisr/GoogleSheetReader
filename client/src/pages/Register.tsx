@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -19,6 +19,8 @@ import { Textarea } from "@/components/ui/textarea";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { AlertCircle, CheckCircle, Loader2 } from "lucide-react";
+import { debounce } from "@/lib/utils";
 
 // Validation schema
 const formSchema = z.object({
@@ -45,6 +47,13 @@ type FormValues = z.infer<typeof formSchema>;
 export default function Register() {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [teamNameExists, setTeamNameExists] = useState(false);
+  const [checkingTeamName, setCheckingTeamName] = useState(false);
+  const [studentIdStatus, setStudentIdStatus] = useState<Record<string, { checking: boolean; exists: boolean }>>({
+    studentId1: { checking: false, exists: false },
+    studentId2: { checking: false, exists: false },
+    studentId3: { checking: false, exists: false },
+  });
 
   // Initialize form
   const form = useForm<FormValues>({
@@ -59,7 +68,154 @@ export default function Register() {
     },
   });
 
+  // Create debounced functions for API calls
+  const debouncedCheckTeamName = debounce(async (teamName: string) => {
+    if (!teamName || teamName.length < 2) {
+      setTeamNameExists(false);
+      setCheckingTeamName(false);
+      return;
+    }
+
+    try {
+      const response = await apiRequest("GET", `/api/sheets/check-team?teamName=${encodeURIComponent(teamName)}`);
+      const data = await response.json();
+      setTeamNameExists(data.exists);
+    } catch (error) {
+      console.error("Error checking team name:", error);
+    } finally {
+      setCheckingTeamName(false);
+    }
+  }, 500);
+
+  const debouncedCheckStudentId = debounce(async (studentId: string, fieldName: string) => {
+    if (!studentId || !/^\d{13}$/.test(studentId)) {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        [fieldName]: { checking: false, exists: false }
+      }));
+      return;
+    }
+
+    try {
+      const response = await apiRequest("GET", `/api/sheets/check-student-id?studentId=${encodeURIComponent(studentId)}`);
+      const data = await response.json();
+      setStudentIdStatus(prev => ({
+        ...prev,
+        [fieldName]: { checking: false, exists: data.exists }
+      }));
+    } catch (error) {
+      console.error(`Error checking ${fieldName}:`, error);
+      setStudentIdStatus(prev => ({
+        ...prev,
+        [fieldName]: { checking: false, exists: false }
+      }));
+    }
+  }, 500);
+
+  // Watch for form field changes
+  const teamName = form.watch("teamName");
+  const studentId1 = form.watch("studentId1");
+  const studentId2 = form.watch("studentId2");
+  const studentId3 = form.watch("studentId3");
+
+  // Check for duplicate team name
+  useEffect(() => {
+    if (teamName && teamName.length >= 2) {
+      setCheckingTeamName(true);
+      debouncedCheckTeamName(teamName);
+    } else {
+      setTeamNameExists(false);
+      setCheckingTeamName(false);
+    }
+  }, [teamName]);
+
+  // Check for duplicate student IDs
+  useEffect(() => {
+    if (studentId1 && /^\d{13}$/.test(studentId1)) {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        studentId1: { ...prev.studentId1, checking: true }
+      }));
+      debouncedCheckStudentId(studentId1, "studentId1");
+    } else {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        studentId1: { checking: false, exists: false }
+      }));
+    }
+  }, [studentId1]);
+
+  useEffect(() => {
+    if (studentId2 && /^\d{13}$/.test(studentId2)) {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        studentId2: { ...prev.studentId2, checking: true }
+      }));
+      debouncedCheckStudentId(studentId2, "studentId2");
+    } else {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        studentId2: { checking: false, exists: false }
+      }));
+    }
+  }, [studentId2]);
+
+  useEffect(() => {
+    if (studentId3 && /^\d{13}$/.test(studentId3)) {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        studentId3: { ...prev.studentId3, checking: true }
+      }));
+      debouncedCheckStudentId(studentId3, "studentId3");
+    } else {
+      setStudentIdStatus(prev => ({
+        ...prev,
+        studentId3: { checking: false, exists: false }
+      }));
+    }
+  }, [studentId3]);
+
+  // Check for internal duplicates (same student ID used multiple times in the form)
+  const hasDuplicateInternalIds = () => {
+    const ids = [studentId1, studentId2, studentId3].filter(id => id && id.length === 13);
+    const uniqueIds = new Set(ids);
+    return uniqueIds.size !== ids.length;
+  };
+
+  const internalDuplicateError = hasDuplicateInternalIds();
+
   const onSubmit = async (values: FormValues) => {
+    // Additional validation before submission
+    if (teamNameExists) {
+      toast({
+        title: "Validation Error",
+        description: "Team name already exists. Please choose another name.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check if any student ID already exists in the database
+    const anyExistingStudentId = Object.values(studentIdStatus).some(status => status.exists);
+    if (anyExistingStudentId) {
+      toast({
+        title: "Validation Error",
+        description: "One or more student IDs are already registered. Each student can only be part of one team.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Check for internal duplicates
+    if (internalDuplicateError) {
+      toast({
+        title: "Validation Error",
+        description: "Each student ID must be unique. You cannot use the same ID multiple times.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     try {
       // Submit data to the API
@@ -67,6 +223,12 @@ export default function Register() {
       
       // Reset form
       form.reset();
+      setTeamNameExists(false);
+      setStudentIdStatus({
+        studentId1: { checking: false, exists: false },
+        studentId2: { checking: false, exists: false },
+        studentId3: { checking: false, exists: false },
+      });
       
       // Show success message
       toast({
@@ -95,11 +257,7 @@ export default function Register() {
               <CardDescription className="mt-1 text-sm text-gray-500">
                 Register your team and project information
               </CardDescription>
-              <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-md">
-                <p className="text-sm text-green-700">
-                  <strong>Note:</strong> The form is now connected to Google Sheets using service account authentication. Your data will be automatically saved to the spreadsheet when you submit this form.
-                </p>
-              </div>
+
             </CardHeader>
             <CardContent className="px-4 py-5 sm:px-6">
               <Form {...form}>
@@ -110,10 +268,34 @@ export default function Register() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>Team Name <span className="text-red-500">*</span></FormLabel>
-                        <FormControl>
-                          <Input placeholder="Enter your team name" {...field} />
-                        </FormControl>
+                        <div className="relative">
+                          <FormControl>
+                            <Input 
+                              placeholder="Enter your team name" 
+                              {...field} 
+                              className={teamNameExists ? "pr-10 border-red-500" : ""}
+                            />
+                          </FormControl>
+                          {checkingTeamName && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                            </div>
+                          )}
+                          {!checkingTeamName && teamNameExists && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <AlertCircle className="h-4 w-4 text-red-500" />
+                            </div>
+                          )}
+                          {!checkingTeamName && teamName && teamName.length >= 2 && !teamNameExists && (
+                            <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                              <CheckCircle className="h-4 w-4 text-green-500" />
+                            </div>
+                          )}
+                        </div>
                         <FormMessage />
+                        {teamNameExists && (
+                          <p className="text-sm text-red-500 mt-1">This team name is already taken. Please choose a different name.</p>
+                        )}
                       </FormItem>
                     )}
                   />
@@ -162,13 +344,37 @@ export default function Register() {
                       render={({ field }) => (
                         <FormItem>
                           <FormLabel>Student ID 1 <span className="text-red-500">*</span></FormLabel>
-                          <FormControl>
-                            <Input placeholder="Enter 13-digit student ID" {...field} />
-                          </FormControl>
+                          <div className="relative">
+                            <FormControl>
+                              <Input 
+                                placeholder="Enter 13-digit student ID" 
+                                {...field} 
+                                className={studentIdStatus.studentId1.exists ? "pr-10 border-red-500" : ""}
+                              />
+                            </FormControl>
+                            {studentIdStatus.studentId1.checking && (
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                              </div>
+                            )}
+                            {!studentIdStatus.studentId1.checking && studentIdStatus.studentId1.exists && (
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <AlertCircle className="h-4 w-4 text-red-500" />
+                              </div>
+                            )}
+                            {!studentIdStatus.studentId1.checking && studentId1 && /^\d{13}$/.test(studentId1) && !studentIdStatus.studentId1.exists && (
+                              <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                                <CheckCircle className="h-4 w-4 text-green-500" />
+                              </div>
+                            )}
+                          </div>
                           <FormDescription>
                             Required: Enter a 13-digit student ID
                           </FormDescription>
                           <FormMessage />
+                          {studentIdStatus.studentId1.exists && (
+                            <p className="text-sm text-red-500 mt-1">This student ID is already registered. Each student can only be part of one team.</p>
+                          )}
                         </FormItem>
                       )}
                     />

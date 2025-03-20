@@ -85,6 +85,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check for duplicate team name
+  app.get(`${apiPrefix}/sheets/check-team`, async (req, res) => {
+    try {
+      const teamName = req.query.teamName as string;
+      
+      if (!teamName) {
+        return res.status(400).json({ error: "Team name is required" });
+      }
+      
+      const spreadsheetId = process.env.DEFAULT_SPREADSHEET_ID || DEFAULT_SPREADSHEET_ID;
+      const range = process.env.DEFAULT_RANGE || DEFAULT_RANGE;
+      
+      // Get all data
+      const data = await getSheetData(spreadsheetId, range);
+      
+      if (!data.values || data.values.length <= 1) {
+        return res.json({ exists: false });
+      }
+      
+      // Skip the header row, check if the team name exists
+      const exists = data.values.slice(1).some(row => 
+        row[0]?.toLowerCase() === teamName.toLowerCase()
+      );
+      
+      res.json({ exists });
+    } catch (error) {
+      console.error("Error checking team name:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Error checking team name"
+      });
+    }
+  });
+  
+  // Check for duplicate student ID
+  app.get(`${apiPrefix}/sheets/check-student-id`, async (req, res) => {
+    try {
+      const studentId = req.query.studentId as string;
+      
+      if (!studentId) {
+        return res.status(400).json({ error: "Student ID is required" });
+      }
+      
+      const spreadsheetId = process.env.DEFAULT_SPREADSHEET_ID || DEFAULT_SPREADSHEET_ID;
+      const range = process.env.DEFAULT_RANGE || DEFAULT_RANGE;
+      
+      // Get all data
+      const data = await getSheetData(spreadsheetId, range);
+      
+      if (!data.values || data.values.length <= 1) {
+        return res.json({ exists: false });
+      }
+      
+      // Skip the header row, check if the student ID exists in any of the student ID columns
+      const exists = data.values.slice(1).some(row => 
+        (row[3] === studentId) || (row[4] === studentId) || (row[5] === studentId)
+      );
+      
+      res.json({ exists });
+    } catch (error) {
+      console.error("Error checking student ID:", error);
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : "Error checking student ID"
+      });
+    }
+  });
+
   // Registration endpoint - Submit form data to Google Sheets
   app.post(`${apiPrefix}/sheets/register`, async (req, res) => {
     try {
@@ -123,10 +189,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Student ID 3 must be a 13-digit number" });
       }
       
-      // Get spreadsheet ID and range
+      // Get spreadsheet ID and range for data fetching
       const spreadsheetId = process.env.DEFAULT_SPREADSHEET_ID || DEFAULT_SPREADSHEET_ID;
+      const fetchRange = process.env.DEFAULT_RANGE || DEFAULT_RANGE;
+      
+      // Check for duplicate team name
+      const data = await getSheetData(spreadsheetId, fetchRange);
+      
+      if (data.values && data.values.length > 1) {
+        // Check for duplicate team name
+        const teamExists = data.values.slice(1).some(row => 
+          row[0]?.toLowerCase() === teamName.toLowerCase()
+        );
+        
+        if (teamExists) {
+          return res.status(400).json({ error: "Team name already exists. Please choose a different name." });
+        }
+        
+        // Check for duplicate student IDs
+        const studentsToCheck = [studentId1];
+        if (studentId2) studentsToCheck.push(studentId2);
+        if (studentId3) studentsToCheck.push(studentId3);
+        
+        for (const id of studentsToCheck) {
+          const studentExists = data.values.slice(1).some(row => 
+            row[3] === id || row[4] === id || row[5] === id
+          );
+          
+          if (studentExists) {
+            return res.status(400).json({ error: `Student ID ${id} is already registered. Each student can only be part of one team.` });
+          }
+        }
+      }
+      
       // We'll append to the sheet with a specific range
-      const range = "Sheet1!A:F"; // Adjust the range to match your sheet's structure
+      const appendRange = "Sheet1!A:F"; // Adjust the range to match your sheet's structure
       
       // Format data for Google Sheets
       // Each row is an array of values
@@ -142,7 +239,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       ];
       
       // Append data to the sheet
-      const result = await appendDataToSheet(spreadsheetId, range, values);
+      const result = await appendDataToSheet(spreadsheetId, appendRange, values);
       
       res.json({
         success: true,
