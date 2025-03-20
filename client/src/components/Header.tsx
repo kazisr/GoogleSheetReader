@@ -31,7 +31,7 @@ export default function Header({ onRefresh }: HeaderProps) {
                   <line x1="9" y1="12" x2="15" y2="12" />
                   <line x1="9" y1="16" x2="15" y2="16" />
                 </svg>
-                <h1 className="text-xl font-semibold text-gray-800 my-auto">Project Registration Manager</h1>
+                <h1 className="text-xl font-semibold text-gray-800">Project Registration Manager</h1>
               </div>
             </Link>
           </div>
