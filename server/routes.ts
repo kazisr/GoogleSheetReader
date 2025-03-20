@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { getSheetData, checkConnection } from "./googleSheets";
+import { getSheetData, checkConnection, appendDataToSheet } from "./googleSheets";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API route prefix

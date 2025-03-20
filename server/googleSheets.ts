@@ -59,3 +59,32 @@ export async function checkConnection() {
     error,
   };
 }
+
+export async function appendDataToSheet(
+  spreadsheetId: string, 
+  range: string, 
+  values: string[][]
+) {
+  try {
+    const { client, isAuthenticated } = await initializeGoogleSheetsClient();
+    
+    if (!client || !isAuthenticated) {
+      throw new Error('Not authenticated with Google Sheets API');
+    }
+    
+    const response = await client.spreadsheets.values.append({
+      spreadsheetId,
+      range,
+      valueInputOption: 'USER_ENTERED',
+      insertDataOption: 'INSERT_ROWS',
+      requestBody: {
+        values,
+      },
+    });
+    
+    return response.data;
+  } catch (error) {
+    console.error('Error appending data to sheet:', error);
+    throw error;
+  }
+}

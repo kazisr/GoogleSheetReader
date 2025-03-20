@@ -1,5 +1,6 @@
-import { Settings, HelpCircle, RefreshCw, User } from "lucide-react";
+import { Settings, HelpCircle, RefreshCw, User, FileSignature } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 interface HeaderProps {
   onRefresh: () => void;
@@ -43,13 +44,23 @@ export default function Header({ onRefresh }: HeaderProps) {
                 </Button>
               </div>
             </div>
-            <div className="ml-3 relative">
-              <Button
-                className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium flex items-center hover:bg-blue-700"
-              >
-                <User className="h-4 w-4 mr-1" />
-                <span>Account</span>
-              </Button>
+            <div className="ml-3 flex items-center space-x-3">
+              <Link href="/register">
+                <Button
+                  className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center hover:bg-green-700"
+                >
+                  <FileSignature className="h-4 w-4 mr-1" />
+                  <span>Register</span>
+                </Button>
+              </Link>
+              <Link href="/">
+                <Button
+                  className="bg-primary text-white px-4 py-2 rounded-md text-sm font-medium flex items-center hover:bg-blue-700"
+                >
+                  <User className="h-4 w-4 mr-1" />
+                  <span>Home</span>
+                </Button>
+              </Link>
             </div>
           </div>
         </div>
