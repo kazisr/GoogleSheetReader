@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import ConnectionStatus from "@/components/ConnectionStatus";
@@ -11,6 +12,9 @@ import type { Configuration } from "@/types";
 
 export default function Home() {
   const { toast } = useToast();
+  const [location] = useLocation();
+  const isConfigPage = location === "/configKazisr";
+  
   const [config, setConfig] = useState<Configuration>({
     spreadsheetId: import.meta.env.VITE_DEFAULT_SPREADSHEET_ID || "1NIpzqKR8rGTIRsO_48BD91AOjF6U6m6ilrUkG0mnJz8",
     range: import.meta.env.VITE_DEFAULT_RANGE || "Sheet1!A1:Z100"
@@ -69,16 +73,34 @@ export default function Home() {
   const isError = connectionStatusQuery.isError || sheetDataQuery.isError;
   const isAuthenticated = !isError && connectionStatus.authenticated;
 
+  // Add a page title
+  useEffect(() => {
+    document.title = isConfigPage ? "Configuration - Project Registration Manager" : "Project Data - Project Registration Manager";
+  }, [isConfigPage]);
+
   return (
     <div className="min-h-screen flex flex-col">
       <Header onRefresh={handleRefresh} />
       <main className="flex-grow">
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <ConnectionStatus 
-            status={connectionStatus} 
-            isLoading={connectionStatusQuery.isLoading}
-            isError={connectionStatusQuery.isError} 
-          />
+          {isConfigPage && (
+            <ConnectionStatus 
+              status={connectionStatus} 
+              isLoading={connectionStatusQuery.isLoading}
+              isError={connectionStatusQuery.isError} 
+            />
+          )}
+          
+          <div className="mb-6">
+            <h1 className="text-2xl font-bold text-gray-900">
+              {isConfigPage ? "Spreadsheet Configuration" : "Project Registration Data"}
+            </h1>
+            <p className="mt-2 text-gray-600">
+              {isConfigPage 
+                ? "Configure connection settings for the Google Sheets integration." 
+                : "View all registered projects and teams from the connected Google Sheet."}
+            </p>
+          </div>
           
           <DataTable 
             data={sheetDataQuery.data} 
@@ -88,11 +110,13 @@ export default function Home() {
             onRefresh={handleRefresh} 
           />
           
-          <ConfigurationCard 
-            config={config} 
-            onSave={handleSaveConfig} 
-            onReload={handleRefresh} 
-          />
+          {isConfigPage && (
+            <ConfigurationCard 
+              config={config} 
+              onSave={handleSaveConfig} 
+              onReload={handleRefresh} 
+            />
+          )}
         </div>
       </main>
       <Footer />
